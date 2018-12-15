@@ -173,7 +173,6 @@ filter f (h:.t)
   -> List a
 (++) a Nil = a
 (++) Nil a = a
-(++) Nil Nil = Nil
 (++) a a' = foldRight (:.) a' a
 
 infixr 5 ++

@@ -55,7 +55,7 @@ instance Functor List where
     (a -> b)
     -> List a
     -> List b
-  (<$>) f Nil = Nil
+  (<$>) _ Nil = Nil
   (<$>) f (h:.t) = (f h) :. (f <$> t)
 
 -- | Maps a function on the Optional functor.
@@ -71,7 +71,7 @@ instance Functor Optional where
     -> Optional a
     -> Optional b
   (<$>) f (Full a) = Full (f a)
-  (<$>) f Empty = Empty
+  (<$>) _ Empty = Empty
 
 -- | Maps a function on the reader ((->) t) functor.
 --

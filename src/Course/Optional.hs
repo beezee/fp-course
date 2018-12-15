@@ -28,7 +28,7 @@ mapOptional ::
   -> Optional a
   -> Optional b
 mapOptional f (Full a) = Full (f a)
-mapOptional f Empty = Empty
+mapOptional _ Empty = Empty
 
 -- | Bind the given function on the possible value.
 --
@@ -45,7 +45,7 @@ bindOptional ::
   -> Optional a
   -> Optional b
 bindOptional fob (Full a) = fob a
-bindOptional fob Empty = Empty
+bindOptional _ Empty = Empty
 
 -- | Return the possible value if it exists; otherwise, the second argument.
 --
