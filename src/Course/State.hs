@@ -12,6 +12,7 @@ import Course.List
 import Course.Functor
 import Course.Applicative
 import Course.Monad
+import Data.Char (digitToInt)
 import qualified Data.Set as S
 
 -- $setup
@@ -135,13 +136,20 @@ instance Monad (State s) where
 --
 -- >>> let p x = (\s -> (const $ pure (x == 'i')) =<< put (1+s)) =<< get in runState (findM p $ listh ['a'..'h']) 0
 -- (Empty,8)
+findM' :: Monad f => (a -> f Bool) -> Optional a -> List a -> f (Optional a)
+findM' _ r Nil = return r
+findM' f r (h :. t) = case r of 
+  Full v -> return (Full v)
+  Empty -> (f h) >>= (\b -> findM' f (case b of
+    True -> Full h
+    False -> Empty) t)
+
 findM ::
   Monad f =>
   (a -> f Bool)
   -> List a
   -> f (Optional a)
-findM =
-  error "todo: Course.State#findM"
+findM f l = findM' f Empty l
 
 -- | Find the first element in a `List` that repeats.
 -- It is possible that no element repeats, hence an `Optional` result.
@@ -154,8 +162,9 @@ firstRepeat ::
   Ord a =>
   List a
   -> Optional a
-firstRepeat =
-  error "todo: Course.State#firstRepeat"
+firstRepeat l =
+  let p x = (\s -> (const $ pure (S.member x s)) =<< put (S.insert x s)) =<< get 
+  in fst $ runState (findM p $ l) S.empty
 
 -- | Remove all duplicate elements in a `List`.
 -- /Tip:/ Use `filtering` and `State` with a @Data.Set#Set@.
@@ -167,8 +176,10 @@ distinct ::
   Ord a =>
   List a
   -> List a
-distinct =
-  error "todo: Course.State#distinct"
+distinct = snd . foldLeft (\t a -> (S.insert a (fst t),
+  case (S.member a (fst t)) of
+    True -> snd t
+    False -> a :. (snd t))) (S.empty, Nil)
 
 -- | A happy number is a positive integer, where the sum of the square of its digits eventually reaches 1 after repetition.
 -- In contrast, a sad number (not a happy number) is where the sum of the square of its digits never reaches 1
@@ -194,5 +205,6 @@ distinct =
 isHappy ::
   Integer
   -> Bool
-isHappy =
-  error "todo: Course.State#isHappy"
+isHappy i = let sq = (\x -> x * x) . digitToInt in
+  (contains 1) $ firstRepeat $ (produce (sum . (map sq) . show')) $
+    fromInteger i
