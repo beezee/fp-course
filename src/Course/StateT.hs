@@ -172,8 +172,10 @@ distinct' ::
   (Ord a, Num a) =>
   List a
   -> List a
-distinct' =
-  error "todo: Course.StateT#distinct'"
+distinct' l =
+  eval (filtering (\a -> get >>= 
+    (\s -> (S.notMember a s) <$ (put $ S.insert a s))) l)
+    S.empty
 
 -- | Remove all duplicate elements in a `List`.
 -- However, if you see a value greater than `100` in the list,
@@ -190,8 +192,12 @@ distinctF ::
   (Ord a, Num a) =>
   List a
   -> Optional (List a)
-distinctF =
-  error "todo: Course.StateT#distinctF"
+distinctF l =
+  evalT (filtering (\a -> 
+    StateT $ (\s -> case (a <= 100) of
+      True -> Full ((S.notMember a s), (S.insert a s))
+      False -> Empty)) l)
+    S.empty
 
 -- | An `OptionalT` is a functor of an `Optional` value.
 data OptionalT f a =
