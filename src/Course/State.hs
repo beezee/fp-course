@@ -12,6 +12,7 @@ import Course.List
 import Course.Functor
 import Course.Applicative
 import Course.Monad
+import Data.Char (digitToInt)
 import qualified Data.Set as S
 
 -- $setup
@@ -38,8 +39,7 @@ exec ::
   State s a
   -> s
   -> s
-exec =
-  error "todo: Course.State#exec"
+exec (State {runState=sas}) = snd . sas
 
 -- | Run the `State` seeded with `s` and retrieve the resulting value.
 --
@@ -48,8 +48,7 @@ eval ::
   State s a
   -> s
   -> a
-eval =
-  error "todo: Course.State#eval"
+eval (State {runState=sas}) = fst . sas
 
 -- | A `State` where the state also distributes into the produced value.
 --
@@ -57,8 +56,7 @@ eval =
 -- (0,0)
 get ::
   State s s
-get =
-  error "todo: Course.State#get"
+get = State {runState=(\s -> (s, s))}
 
 -- | A `State` where the resulting state is seeded with the given value.
 --
@@ -67,8 +65,7 @@ get =
 put ::
   s
   -> State s ()
-put =
-  error "todo: Course.State#put"
+put s = State {runState=(\_ -> ((), s))}
 
 -- | Implement the `Functor` instance for `State s`.
 --
@@ -79,8 +76,9 @@ instance Functor (State s) where
     (a -> b)
     -> State s a
     -> State s b
-  (<$>) =
-    error "todo: Course.State#(<$>)"
+  (<$>) ab (State {runState=sas}) = State $ \s ->
+    let (a, s2) = (sas s)
+    in ((ab a), s2)
 
 -- | Implement the `Applicative` instance for `State s`.
 --
@@ -97,14 +95,15 @@ instance Applicative (State s) where
   pure ::
     a
     -> State s a
-  pure =
-    error "todo: Course.State pure#instance (State s)"
+  pure a = State $ (\s -> (a, s))
   (<*>) ::
     State s (a -> b)
     -> State s a
     -> State s b 
-  (<*>) =
-    error "todo: Course.State (<*>)#instance (State s)"
+  (<*>) (State sfabs) (State sas) = State $ \s ->
+    let (fab, s2) = sfabs s
+        (a, s3) = sas s2
+    in ((fab a), s3)
 
 -- | Implement the `Bind` instance for `State s`.
 --
@@ -118,8 +117,10 @@ instance Monad (State s) where
     (a -> State s b)
     -> State s a
     -> State s b
-  (=<<) =
-    error "todo: Course.State (=<<)#instance (State s)"
+  (=<<) ksb (State {runState=as}) = State $ \s ->
+    let (a, s2) = (as s)
+        (State {runState=sbs}) = ksb a
+    in sbs s2
 
 -- | Find the first element in a `List` that satisfies a given predicate.
 -- It is possible that no element is found, hence an `Optional` result.
@@ -135,13 +136,20 @@ instance Monad (State s) where
 --
 -- >>> let p x = (\s -> (const $ pure (x == 'i')) =<< put (1+s)) =<< get in runState (findM p $ listh ['a'..'h']) 0
 -- (Empty,8)
+findM' :: Monad f => (a -> f Bool) -> Optional a -> List a -> f (Optional a)
+findM' _ r Nil = return r
+findM' f r (h :. t) = case r of 
+  Full v -> return (Full v)
+  Empty -> (f h) >>= (\b -> findM' f (case b of
+    True -> Full h
+    False -> Empty) t)
+
 findM ::
   Monad f =>
   (a -> f Bool)
   -> List a
   -> f (Optional a)
-findM =
-  error "todo: Course.State#findM"
+findM f l = findM' f Empty l
 
 -- | Find the first element in a `List` that repeats.
 -- It is possible that no element repeats, hence an `Optional` result.
@@ -154,8 +162,9 @@ firstRepeat ::
   Ord a =>
   List a
   -> Optional a
-firstRepeat =
-  error "todo: Course.State#firstRepeat"
+firstRepeat l =
+  let p x = (\s -> (const $ pure (S.member x s)) =<< put (S.insert x s)) =<< get 
+  in fst $ runState (findM p $ l) S.empty
 
 -- | Remove all duplicate elements in a `List`.
 -- /Tip:/ Use `filtering` and `State` with a @Data.Set#Set@.
@@ -167,8 +176,10 @@ distinct ::
   Ord a =>
   List a
   -> List a
-distinct =
-  error "todo: Course.State#distinct"
+distinct = snd . foldLeft (\t a -> (S.insert a (fst t),
+  case (S.member a (fst t)) of
+    True -> snd t
+    False -> a :. (snd t))) (S.empty, Nil)
 
 -- | A happy number is a positive integer, where the sum of the square of its digits eventually reaches 1 after repetition.
 -- In contrast, a sad number (not a happy number) is where the sum of the square of its digits never reaches 1
@@ -194,5 +205,6 @@ distinct =
 isHappy ::
   Integer
   -> Bool
-isHappy =
-  error "todo: Course.State#isHappy"
+isHappy i = let sq = (\x -> x * x) . digitToInt in
+  (contains 1) $ firstRepeat $ (produce (sum . (map sq) . show')) $
+    fromInteger i
